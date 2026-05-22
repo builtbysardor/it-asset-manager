@@ -1,6 +1,6 @@
 "use client";
-export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -40,7 +40,7 @@ function SkeletonRows() {
   );
 }
 
-export default function AssetsPage() {
+function AssetsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -278,5 +278,13 @@ export default function AssetsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AssetsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-gray-400">Loading...</div>}>
+      <AssetsContent />
+    </Suspense>
   );
 }
