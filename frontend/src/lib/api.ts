@@ -1,10 +1,14 @@
 import { Asset, AssetListResponse, Category, Location, Stats, AuditLog } from "@/types";
+import { getToken } from "./auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
     ...options,
   });
   if (!res.ok) {
@@ -109,3 +113,15 @@ export function exportCsvUrl(): string {
 
 export const getAssetQrUrl = (id: number) =>
   `${API}/api/assets/${id}/qr`;
+
+export async function login(username: string, password: string) {
+  const form = new URLSearchParams();
+  form.append("username", username);
+  form.append("password", password);
+  const res = await fetch(`${API}/api/auth/token`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error("Invalid credentials");
+  return res.json();
+}

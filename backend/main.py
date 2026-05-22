@@ -2,8 +2,9 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
-from models import Category, Location, Asset
-from routers import assets, categories, locations, assignments, reports, qrcode
+from models import Category, Location, Asset, User
+from routers.auth import hash_password
+from routers import assets, categories, locations, assignments, reports, qrcode, auth
 from scheduler import start_scheduler
 
 Base.metadata.create_all(bind=engine)
@@ -23,11 +24,16 @@ app.include_router(locations.router)
 app.include_router(assignments.router)
 app.include_router(reports.router)
 app.include_router(qrcode.router)
+app.include_router(auth.router)
 
 
 def seed_db():
     db = SessionLocal()
     try:
+        if db.query(User).count() == 0:
+            db.add(User(username="admin", hashed_password=hash_password("admin123"), full_name="Administrator"))
+            db.commit()
+
         if db.query(Category).count() > 0:
             return
 
