@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
 from models import Category, Location, Asset
-from routers import assets, categories, locations, assignments, reports
+from routers import assets, categories, locations, assignments, reports, qrcode
+from scheduler import start_scheduler
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +22,7 @@ app.include_router(categories.router)
 app.include_router(locations.router)
 app.include_router(assignments.router)
 app.include_router(reports.router)
+app.include_router(qrcode.router)
 
 
 def seed_db():
@@ -72,6 +74,7 @@ def seed_db():
 def startup():
     os.makedirs("data", exist_ok=True)
     seed_db()
+    start_scheduler()
 
 
 @app.get("/")

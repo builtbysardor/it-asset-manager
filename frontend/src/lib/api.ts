@@ -106,3 +106,6 @@ export async function getUnassigned(): Promise<Asset[]> {
 export function exportCsvUrl(): string {
   return `${API}/api/assets/export/csv`;
 }
+
+export const getAssetQrUrl = (id: number) =>
+  `${API}/api/assets/${id}/qr`;
