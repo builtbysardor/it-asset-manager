@@ -49,6 +49,7 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
 
   const search = searchParams.get("search") ?? "";
+  const [searchInput, setSearchInput] = useState(search);
   const status = searchParams.get("status") ?? "";
   const categoryId = searchParams.get("category_id") ?? "";
   const page = Number(searchParams.get("page") ?? "1");
@@ -72,6 +73,13 @@ export default function AssetsPage() {
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateParams({ search: searchInput });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     setLoading(true);
@@ -112,8 +120,8 @@ export default function AssetsPage() {
         <input
           type="text"
           placeholder="Search by name, tag, serial…"
-          defaultValue={search}
-          onChange={(e) => updateParams({ search: e.target.value })}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
         />
 

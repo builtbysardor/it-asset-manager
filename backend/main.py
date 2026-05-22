@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
@@ -9,11 +10,21 @@ from scheduler import start_scheduler
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AssetTrack API", version="1.0.0", docs_url="/docs")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    os.makedirs("data", exist_ok=True)
+    seed_db()
+    scheduler = start_scheduler()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="AssetTrack API", version="1.0.0", docs_url="/docs", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -75,12 +86,6 @@ def seed_db():
     finally:
         db.close()
 
-
-@app.on_event("startup")
-def startup():
-    os.makedirs("data", exist_ok=True)
-    seed_db()
-    start_scheduler()
 
 
 @app.get("/")

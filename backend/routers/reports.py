@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Asset, Category
 from schemas import StatsOut, AssetOut
+from routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
 @router.get("/stats", response_model=StatsOut)
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     assets = db.query(Asset).all()
     by_status = {}
     by_category = {}
@@ -31,7 +32,7 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/expiring-warranty", response_model=list[AssetOut])
-def expiring_warranty(days: int = Query(30, ge=1), db: Session = Depends(get_db)):
+def expiring_warranty(days: int = Query(30, ge=1), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     cutoff = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
     today = datetime.utcnow().strftime("%Y-%m-%d")
     assets = db.query(Asset).filter(
@@ -44,7 +45,7 @@ def expiring_warranty(days: int = Query(30, ge=1), db: Session = Depends(get_db)
 
 
 @router.get("/unassigned", response_model=list[AssetOut])
-def unassigned_assets(db: Session = Depends(get_db)):
+def unassigned_assets(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return db.query(Asset).filter(
         Asset.assigned_to == None,
         Asset.status == "active",

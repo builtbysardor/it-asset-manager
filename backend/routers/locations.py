@@ -3,17 +3,18 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Location
 from schemas import LocationCreate, LocationOut
+from routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
 
 
 @router.get("/", response_model=list[LocationOut])
-def list_locations(db: Session = Depends(get_db)):
+def list_locations(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return db.query(Location).all()
 
 
 @router.post("/", response_model=LocationOut, status_code=201)
-def create_location(data: LocationCreate, db: Session = Depends(get_db)):
+def create_location(data: LocationCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     loc = Location(**data.model_dump())
     db.add(loc)
     db.commit()
@@ -22,7 +23,7 @@ def create_location(data: LocationCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{loc_id}", response_model=LocationOut)
-def update_location(loc_id: int, data: LocationCreate, db: Session = Depends(get_db)):
+def update_location(loc_id: int, data: LocationCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     loc = db.query(Location).filter(Location.id == loc_id).first()
     if not loc:
         raise HTTPException(404, "Location not found")
@@ -34,7 +35,7 @@ def update_location(loc_id: int, data: LocationCreate, db: Session = Depends(get
 
 
 @router.delete("/{loc_id}", status_code=204)
-def delete_location(loc_id: int, db: Session = Depends(get_db)):
+def delete_location(loc_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     loc = db.query(Location).filter(Location.id == loc_id).first()
     if not loc:
         raise HTTPException(404, "Location not found")

@@ -3,17 +3,18 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Category
 from schemas import CategoryCreate, CategoryOut
+from routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
 @router.get("/", response_model=list[CategoryOut])
-def list_categories(db: Session = Depends(get_db)):
+def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return db.query(Category).all()
 
 
 @router.post("/", response_model=CategoryOut, status_code=201)
-def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(data: CategoryCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     existing = db.query(Category).filter(Category.name == data.name).first()
     if existing:
         raise HTTPException(400, "Category name already exists")
@@ -25,7 +26,7 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{cat_id}", response_model=CategoryOut)
-def update_category(cat_id: int, data: CategoryCreate, db: Session = Depends(get_db)):
+def update_category(cat_id: int, data: CategoryCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(404, "Category not found")
@@ -37,7 +38,7 @@ def update_category(cat_id: int, data: CategoryCreate, db: Session = Depends(get
 
 
 @router.delete("/{cat_id}", status_code=204)
-def delete_category(cat_id: int, db: Session = Depends(get_db)):
+def delete_category(cat_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(404, "Category not found")

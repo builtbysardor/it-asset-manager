@@ -8,13 +8,20 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Asset, AuditLog
 from schemas import AssetCreate, AssetUpdate, AssetOut
+from routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
 
 def _next_asset_tag(db: Session) -> str:
     last = db.query(Asset).order_by(Asset.id.desc()).first()
-    num = (last.id + 1) if last else 1
+    if last and last.asset_tag:
+        try:
+            num = int(last.asset_tag.split("-")[1]) + 1
+        except (IndexError, ValueError):
+            num = db.query(Asset).count() + 1
+    else:
+        num = 1
     return f"AST-{num:04d}"
 
 
@@ -32,6 +39,7 @@ def list_assets(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
     q = db.query(Asset)
     if search:
@@ -54,7 +62,7 @@ def list_assets(
 
 
 @router.post("/", response_model=AssetOut, status_code=201)
-def create_asset(data: AssetCreate, db: Session = Depends(get_db)):
+def create_asset(data: AssetCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     asset = Asset(asset_tag=_next_asset_tag(db), **data.model_dump())
     db.add(asset)
     db.flush()
@@ -65,7 +73,7 @@ def create_asset(data: AssetCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/export/csv")
-def export_csv(db: Session = Depends(get_db)):
+def export_csv(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     assets = db.query(Asset).all()
     output = io.StringIO()
     writer = csv.writer(output)
@@ -96,7 +104,7 @@ def export_csv(db: Session = Depends(get_db)):
 
 
 @router.post("/import/csv")
-async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     content = await file.read()
     reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
     created = 0
@@ -130,7 +138,7 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 
 @router.get("/{asset_id}", response_model=AssetOut)
-def get_asset(asset_id: int, db: Session = Depends(get_db)):
+def get_asset(asset_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(404, "Asset not found")
@@ -138,7 +146,7 @@ def get_asset(asset_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{asset_id}", response_model=AssetOut)
-def update_asset(asset_id: int, data: AssetUpdate, db: Session = Depends(get_db)):
+def update_asset(asset_id: int, data: AssetUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(404, "Asset not found")
@@ -157,18 +165,19 @@ def update_asset(asset_id: int, data: AssetUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{asset_id}", status_code=204)
-def retire_asset(asset_id: int, db: Session = Depends(get_db)):
+def retire_asset(asset_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(404, "Asset not found")
+    prev_status = asset.status
     asset.status = "retired"
     asset.updated_at = datetime.utcnow()
-    _log(db, asset.id, "retired", {"previous_status": asset.status})
+    _log(db, asset.id, "retired", {"previous_status": prev_status})
     db.commit()
 
 
 @router.get("/{asset_id}/history")
-def asset_history(asset_id: int, db: Session = Depends(get_db)):
+def asset_history(asset_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     logs = db.query(AuditLog).filter(AuditLog.asset_id == asset_id).order_by(AuditLog.created_at.desc()).all()
     return [{"id": l.id, "action": l.action, "details": l.details,
              "performed_by": l.performed_by, "created_at": l.created_at.isoformat()} for l in logs]

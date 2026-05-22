@@ -1,5 +1,5 @@
 import { Asset, AssetListResponse, Category, Location, Stats, AuditLog } from "@/types";
-import { getToken } from "./auth";
+import { getToken, removeToken } from "./auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -11,6 +11,11 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
     },
     ...options,
   });
+  if (res.status === 401) {
+    removeToken();
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Request failed");
@@ -49,7 +54,7 @@ export async function updateAsset(id: number, data: Partial<Asset>): Promise<Ass
 }
 
 export async function retireAsset(id: number): Promise<void> {
-  await fetch(`${API}/api/assets/${id}`, { method: "DELETE" });
+  await req(`/api/assets/${id}`, { method: "DELETE" });
 }
 
 export async function getAssetHistory(id: number): Promise<AuditLog[]> {
@@ -80,7 +85,7 @@ export async function updateCategory(id: number, data: Partial<Category>): Promi
 }
 
 export async function deleteCategory(id: number): Promise<void> {
-  await fetch(`${API}/api/categories/${id}`, { method: "DELETE" });
+  await req(`/api/categories/${id}`, { method: "DELETE" });
 }
 
 export async function getLocations(): Promise<Location[]> {
@@ -96,7 +101,7 @@ export async function updateLocation(id: number, data: Partial<Location>): Promi
 }
 
 export async function deleteLocation(id: number): Promise<void> {
-  await fetch(`${API}/api/locations/${id}`, { method: "DELETE" });
+  await req(`/api/locations/${id}`, { method: "DELETE" });
 }
 
 export async function getStats(): Promise<Stats> {
